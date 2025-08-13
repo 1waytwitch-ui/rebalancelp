@@ -190,3 +190,7 @@ if st.button("🔎 Analyser") and logs:
             """, unsafe_allow_html=True)
 
             st.markdown('<div class="success-box">✅ Analyse terminée avec succès.</div>', unsafe_allow_html=True)
+
+
+# --- Signature discrète ---
+st.markdown("<div class='signature'>© 1way</div>", unsafe_allow_html=True)
