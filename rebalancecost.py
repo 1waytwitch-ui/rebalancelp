@@ -1,14 +1,12 @@
 import streamlit as st
 import re
 
-
 # --------- CONFIG ---------
 st.set_page_config(
     page_title="Analyse Swap/Rebalance DEX",
     page_icon="📊",
     layout="centered"
 )
-
 
 # --------- CSS ---------
 st.markdown("""
@@ -43,21 +41,20 @@ st.markdown("""
         color: #222;
         margin-bottom: 0.8rem;
     }
-    /* Couleurs vives */
     .sent {
-        background-color: #42a5f5;  /* bleu vif */
+        background-color: #42a5f5;
         color: white;
     }
     .received {
-        background-color: #66bb6a;  /* vert vif */
+        background-color: #66bb6a;
         color: white;
     }
     .diff {
-        background-color: #ffca28;  /* jaune vif */
+        background-color: #ffca28;
         color: #333;
     }
     .loss {
-        background-color: #ef5350;  /* rouge vif */
+        background-color: #ef5350;
         color: white;
     }
     .info-box {
@@ -97,6 +94,15 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+# --------- MESSAGE CONFIDENTIALITÉ ---------
+st.markdown("""
+<div style="background-color: #e0f7fa; border-left: 5px solid #00796b; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 2rem;">
+    <strong>🔒 Confidentialité :</strong><br>
+    ✅ Aucune donnée n’est collectée ou stockée. Cette application fonctionne localement et ne conserve aucune information saisies.  
+    Les logs que vous collez ici ne sont ni transmis ni enregistrés.
+</div>
+""", unsafe_allow_html=True)
+
 # --------- INPUT ---------
 logs = st.text_area("📋 Collez vos logs ici :", height=400, placeholder="Exemple : From\n0x...\nTo\n...")
 
@@ -104,46 +110,33 @@ logs = st.text_area("📋 Collez vos logs ici :", height=400, placeholder="Exemp
 if st.button("🔎 Analyser") and logs:
 
     with st.spinner("⏳ Analyse en cours..."):
-        # Pattern générique pour trouver : "For\n<montant>\n(<USD>)\n\n<token>" 
-        # ou "For\n<montant>\n\n<token>" sans USD
         pattern = re.compile(
             r"For\n([0-9.,]+)(?:\n\(\$?([\d.,]+)\))?\n\n([A-Za-z0-9]+)", 
             re.MULTILINE
         )
-
         matches = pattern.findall(logs)
 
         if not matches:
             st.warning("⚠️ Aucun token détecté dans les logs. Vérifiez le format.")
         else:
-            # On va séparer les tokens envoyés et reçus selon l'ordre d'apparition:
-            # Supposons que les tokens envoyés apparaissent en premier, puis reçus.
-            # S'il y a une autre logique dans les logs, il faudra adapter.
-
-            # Pour l'exemple, on considère la moitié première = tokens envoyés
-            # deuxième moitié = tokens reçus
             half = len(matches) // 2
             sent_tokens = matches[:half]
             received_tokens = matches[half:]
 
-            # Construit un dict pour avoir les tokens envoyés {symbol: {amount, usd}}
             sent_dict = {}
             for amt, usd, symbol in sent_tokens:
                 amt = float(amt.replace(',', ''))
                 usd_val = float(usd.replace(',', '')) if usd else 0.0
                 sent_dict[symbol] = {"amount": amt, "usd": usd_val}
 
-            # Idem pour tokens reçus
             received_dict = {}
             for amt, usd, symbol in received_tokens:
                 amt = float(amt.replace(',', ''))
                 usd_val = float(usd.replace(',', '')) if usd else 0.0
                 received_dict[symbol] = {"amount": amt, "usd": usd_val}
 
-            # Affichage
             st.markdown(f'<div class="section-title">📊 Résumé des montants</div>', unsafe_allow_html=True)
 
-            # Envoyé
             for symbol, data in sent_dict.items():
                 st.markdown(f"""
                 <div class="metric-box sent">
@@ -152,7 +145,6 @@ if st.button("🔎 Analyser") and logs:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Reçu
             for symbol, data in received_dict.items():
                 st.markdown(f"""
                 <div class="metric-box received">
@@ -161,7 +153,6 @@ if st.button("🔎 Analyser") and logs:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Calcul des différences USD
             total_sent_usd = sum(d["usd"] for d in sent_dict.values())
             total_received_usd = sum(d["usd"] for d in received_dict.values())
             diff_usd = total_sent_usd - total_received_usd
@@ -177,7 +168,6 @@ if st.button("🔎 Analyser") and logs:
             </div>
             """ , unsafe_allow_html=True)
 
-            # Analyse frais probable
             st.markdown("---")
             st.markdown(f'<div class="section-title">🧠 Analyse des frais probables</div>', unsafe_allow_html=True)
             st.markdown(f"""
@@ -192,7 +182,6 @@ if st.button("🔎 Analyser") and logs:
             """, unsafe_allow_html=True)
 
             st.markdown('<div class="success-box">✅ Analyse terminée avec succès.</div>', unsafe_allow_html=True)
-
 
 # --- Signature discrète ---
 st.markdown("<div class='signature'>© 1way</div>", unsafe_allow_html=True)
