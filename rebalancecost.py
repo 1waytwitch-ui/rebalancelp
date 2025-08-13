@@ -4,7 +4,7 @@ import re
 # --------- CONFIG ---------
 st.set_page_config(
     page_title="Analyse Swap/Rebalance DEX",
-    page_icon="🔍",
+    page_icon="📊",
     layout="centered"
 )
 
@@ -34,13 +34,7 @@ st.markdown("""
         margin: 0 auto;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .header-container {
-            background: linear-gradient(90deg, #2563eb, #7e22ce);
-        }
-    }
-
-    /* Styles pour résumé et metrics */
+    /* Style résumé des montants */
     .metric-container {
         display: flex;
         justify-content: space-between;
@@ -56,6 +50,7 @@ st.markdown("""
         text-align: center;
         font-weight: bold;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     /* Couleurs adaptatives pour thèmes clairs/sombres */
@@ -64,6 +59,8 @@ st.markdown("""
         --bg-received: #e8f5e9;
         --bg-diff: #fff3e0;
         --bg-loss: #fce4ec;
+        --info-bg: #dbeafe;
+        --success-bg: #dcfce7;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -72,7 +69,39 @@ st.markdown("""
             --bg-received: #1b4b2f;
             --bg-diff: #4b3e00;
             --bg-loss: #5a0024;
+            --info-bg: #1e40af;
+            --success-bg: #14532d;
         }
+    }
+
+    /* Styles des titres de sections */
+    .section-title {
+        font-weight: 800;
+        font-size: 1.9rem;
+        margin-top: 2rem;
+        margin-bottom: 0.3rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Style boite info */
+    .info-box {
+        background-color: var(--info-bg);
+        padding: 1rem 1.2rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Style boite succès */
+    .success-box {
+        background-color: var(--success-bg);
+        padding: 1rem 1.2rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     </style>
 
@@ -105,9 +134,11 @@ if logs and analyser:
 
                 weth_diff = weth_sent - weth_received
                 usd_diff = usd_sent - usd_received
-                pct_loss = (usd_diff / usd_sent) * 100
+                pct_loss = (usd_diff / usd_sent) * 100 if usd_sent != 0 else 0.0
 
-                st.markdown("## 📊 Résumé des montants")
+                # Affichage résumé
+                st.markdown(f'<div class="section-title">📊 Résumé des montants</div>', unsafe_allow_html=True)
+
                 st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
                 st.markdown(f"""
@@ -123,10 +154,11 @@ if logs and analyser:
                 <div class="metric-box" style="background-color: var(--bg-received);">
                 💰 USD reçu<br><span style='font-size: 1.5em'>${usd_received:.2f}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                """ , unsafe_allow_html=True)
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
+                # Différence
                 st.markdown("---")
                 st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
@@ -137,20 +169,25 @@ if logs and analyser:
                 <div class="metric-box" style="background-color: var(--bg-loss);">
                 🔻 Perte estimée<br><span style='font-size: 1.5em'>${usd_diff:.2f} ({pct_loss:.2f}%)</span>
                 </div>
-                """, unsafe_allow_html=True)
+                """ , unsafe_allow_html=True)
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
+                # Analyse frais
                 st.markdown("---")
-                st.markdown("## 🧠 Analyse des frais probables")
-                st.info("""
-- **Frais de swap** (~0.1 %)
-- **Slippage** (0.1 à 0.3 %)
-- **Frais de gas** estimés : $0.10 à $0.20
-- **Aucun frais d’automatisation détecté**
-                """)
+                st.markdown(f'<div class="section-title">🧠 Analyse des frais probables</div>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="info-box">
+                <ul>
+                <li><b>Frais de swap</b> (~0.1 %)</li>
+                <li><b>Slippage</b> (0.1 à 0.3 %)</li>
+                <li><b>Frais de gas</b> estimés : 0.10 à 0.20 $</li>
+                <li>Aucun frais d’automatisation détecté</li>
+                </ul>
+                </div>
+                """, unsafe_allow_html=True)
 
-                st.success("✅ Analyse terminée avec succès.")
+                st.markdown('<div class="success-box">✅ Analyse terminée avec succès.</div>', unsafe_allow_html=True)
 
             except Exception as e:
                 st.error("❌ Erreur lors du traitement : " + str(e))
