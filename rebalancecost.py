@@ -2,12 +2,20 @@ import streamlit as st
 import pandas as pd
 import re
 
-st.set_page_config(page_title="Analyseur de Rebalance", layout="wide")
-st.title("🔍 Analyseur de Transaction Rebalance (Texte Collé)")
+st.set_page_config(page_title="Analyse Rebalance + Frais", layout="wide")
+st.title("🔍 Analyseur de Transaction Rebalance (avec adresse et frais)")
 
+st.markdown("Collez ci-dessous le texte brut de la transaction. Optionnellement, entrez votre adresse wallet pour calculer les flux réels (entrants, sortants, net).")
+
+# 🎯 Inputs utilisateur
+wallet_address = st.text_input("Adresse Ethereum de votre wallet (0x...)", placeholder="0xVotreAdresse")
+gas_fee_input = st.text_input("Frais de gas (en USD, optionnel)", "0")
 input_text = st.text_area("Collez ici le texte brut de la transaction :", height=600)
 
-# 🧠 Parsing du texte collé
+# Bouton pour lancer l’analyse
+run_analysis = st.button("Analyser")
+
+# 🧠 Parsing du texte
 def parse_text(text):
     lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
     data = []
@@ -39,7 +47,6 @@ def parse_text(text):
                     except ValueError:
                         usd = 0.0
 
-            # Recherche du token (souvent juste avant "From")
             token_line = lines[i - 1] if i > 0 else "Unknown"
             token_match = re.search(r"\((.*?)\)", token_line)
             token = token_match.group(1) if token_match else token_line
@@ -58,36 +65,37 @@ def parse_text(text):
 
     return pd.DataFrame(data)
 
-# 💡 Calcul des entrées/sorties nettes
-def calculate_token_flows(df):
-    tokens = df['Token'].unique()
-    flow_data = []
+# 📊 Analyse de l'adresse utilisateur
+def analyze_wallet_flows(df, wallet_address, gas_fee):
+    wallet = wallet_address.lower()
+    flows = []
 
-    for token in tokens:
+    for token in df['Token'].unique():
         token_df = df[df['Token'] == token]
-        total_in = token_df['USD'][token_df['To'] != "Unknown"].sum()
-        total_out = token_df['USD'][token_df['From'] != "Unknown"].sum()
-        net = total_in - total_out
+        sent = token_df[token_df['From'].str.lower() == wallet]['USD'].sum()
+        received = token_df[token_df['To'].str.lower() == wallet]['USD'].sum()
+        net = received - sent
+        net_with_gas = net - gas_fee  # Pertes réelles
 
-        flow_data.append({
+        flows.append({
             "Token": token,
-            "Total reçu (USD)": round(total_in, 2),
-            "Total envoyé (USD)": round(total_out, 2),
-            "Net (USD)": round(net, 2)
+            "Total reçu (USD)": round(received, 2),
+            "Total envoyé (USD)": round(sent, 2),
+            "Net (USD)": round(net, 2),
+            "Net après gas (USD)": round(net_with_gas, 2)
         })
 
-    return pd.DataFrame(flow_data)
+    return pd.DataFrame(flows)
 
-# ✅ Affichage
-if input_text:
+# ▶️ Traitement si bouton pressé
+if run_analysis and input_text:
     try:
         df = parse_text(input_text)
-
         st.subheader("📋 Détails des transferts détectés")
         st.dataframe(df, use_container_width=True)
 
-        st.subheader("💰 Résumé des flux (globaux)")
-
+        # Total global
+        st.subheader("💰 Résumé global")
         total_in = df['USD'][df['To'] != "Unknown"].sum()
         total_out = df['USD'][df['From'] != "Unknown"].sum()
         net = total_in - total_out
@@ -95,24 +103,33 @@ if input_text:
         col1, col2, col3 = st.columns(3)
         col1.metric("Total sortant", f"${total_out:.2f}")
         col2.metric("Total entrant", f"${total_in:.2f}")
-        col3.metric("Net", f"${net:.2f}", delta=f"{net:.2f}")
+        col3.metric("Net brut", f"${net:.2f}", delta=f"{net:.2f}")
 
-        st.subheader("📊 Répartition par token")
-        chart = df.groupby("Token")["USD"].sum().sort_values(ascending=False)
-        st.bar_chart(chart)
+        st.subheader("📊 Répartition globale par token")
+        st.bar_chart(df.groupby("Token")["USD"].sum())
 
-        # 🔎 Calcul par token
-        st.subheader("🧾 Analyse par token (net des flux)")
-        flows_df = calculate_token_flows(df)
-        st.dataframe(flows_df, use_container_width=True)
+        # 🎯 Analyse spécifique si adresse donnée
+        try:
+            gas_fee = float(gas_fee_input)
+        except ValueError:
+            gas_fee = 0.0
 
-        # ⬇️ Export CSV
+        if wallet_address.startswith("0x") and len(wallet_address) == 42:
+            st.subheader("🧾 Analyse personnalisée pour le wallet")
+            wallet_df = analyze_wallet_flows(df, wallet_address, gas_fee)
+            st.dataframe(wallet_df, use_container_width=True)
+
+            st.subheader("📉 Répartition des pertes (net après gas)")
+            chart = wallet_df.set_index("Token")["Net après gas (USD)"]
+            st.bar_chart(chart)
+        else:
+            st.info("Entrez une adresse valide pour voir l'analyse personnalisée.")
+
+        # ⬇️ Exports
         st.subheader("⬇️ Export des données")
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("Télécharger transferts CSV", data=csv, file_name="transferts.csv", mime='text/csv')
-
-        csv2 = flows_df.to_csv(index=False).encode('utf-8')
-        st.download_button("Télécharger analyse flux CSV", data=csv2, file_name="flux_token.csv", mime='text/csv')
+        st.download_button("Télécharger transferts CSV", df.to_csv(index=False), file_name="transferts.csv")
+        if wallet_address.startswith("0x") and len(wallet_address) == 42:
+            st.download_button("Télécharger analyse wallet CSV", wallet_df.to_csv(index=False), file_name="wallet_flux.csv")
 
     except Exception as e:
-        st.error(f"Erreur lors du parsing : {e}")
+        st.error(f"Erreur lors de l'analyse : {e}")
