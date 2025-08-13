@@ -56,72 +56,76 @@ st.markdown("---")
 # --------- INPUT ---------
 logs = st.text_area("📋 Collez vos logs ici :", height=400, placeholder="Exemple : From\n0x...\nTo\n...")
 
-# --------- PARSE ---------
-if logs:
-    sent_match = re.search(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
-    received_match = re.findall(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
+# --------- BOUTON ---------
+analyser = st.button("🔎 Analyser")
 
-    if sent_match and len(received_match) >= 2:
-        try:
-            # Extraction des données
-            weth_sent = float(sent_match.group(1))
-            usd_sent = float(sent_match.group(2))
-            weth_received = float(received_match[-1][0])
-            usd_received = float(received_match[-1][1])
+# --------- PARSE & AFFICHAGE ---------
+if logs and analyser:
+    with st.spinner("⏳ Analyse en cours..."):
+        sent_match = re.search(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
+        received_match = re.findall(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
 
-            weth_diff = weth_sent - weth_received
-            usd_diff = usd_sent - usd_received
-            pct_loss = (usd_diff / usd_sent) * 100
+        if sent_match and len(received_match) >= 2:
+            try:
+                # Extraction des données
+                weth_sent = float(sent_match.group(1))
+                usd_sent = float(sent_match.group(2))
+                weth_received = float(received_match[-1][0])
+                usd_received = float(received_match[-1][1])
 
-            # --------- RÉSULTATS ---------
-            st.markdown("## 📊 Résumé des montants")
-            st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                weth_diff = weth_sent - weth_received
+                usd_diff = usd_sent - usd_received
+                pct_loss = (usd_diff / usd_sent) * 100
 
-            st.markdown(f"""
-            <div class="metric-box" style="background-color: var(--bg-sent);">
-            🔼 WETH envoyé<br><span style='font-size: 1.5em'>{weth_sent:.8f}</span>
-            </div>
-            <div class="metric-box" style="background-color: var(--bg-sent);">
-            💵 USD envoyé<br><span style='font-size: 1.5em'>${usd_sent:.2f}</span>
-            </div>
-            <div class="metric-box" style="background-color: var(--bg-received);">
-            🔽 WETH reçu<br><span style='font-size: 1.5em'>{weth_received:.8f}</span>
-            </div>
-            <div class="metric-box" style="background-color: var(--bg-received);">
-            💰 USD reçu<br><span style='font-size: 1.5em'>${usd_received:.2f}</span>
-            </div>
-            """, unsafe_allow_html=True)
+                # --------- RÉSULTATS ---------
+                st.markdown("## 📊 Résumé des montants")
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
-            st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="metric-box" style="background-color: var(--bg-sent);">
+                🔼 WETH envoyé<br><span style='font-size: 1.5em'>{weth_sent:.8f}</span>
+                </div>
+                <div class="metric-box" style="background-color: var(--bg-sent);">
+                💵 USD envoyé<br><span style='font-size: 1.5em'>${usd_sent:.2f}</span>
+                </div>
+                <div class="metric-box" style="background-color: var(--bg-received);">
+                🔽 WETH reçu<br><span style='font-size: 1.5em'>{weth_received:.8f}</span>
+                </div>
+                <div class="metric-box" style="background-color: var(--bg-received);">
+                💰 USD reçu<br><span style='font-size: 1.5em'>${usd_received:.2f}</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-            st.markdown("---")
-            st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown(f"""
-            <div class="metric-box" style="background-color: var(--bg-diff);">
-            📉 Diff. WETH<br><span style='font-size: 1.5em'>{weth_diff:.8f}</span>
-            </div>
-            <div class="metric-box" style="background-color: var(--bg-loss);">
-            🔻 Perte estimée<br><span style='font-size: 1.5em'>${usd_diff:.2f} ({pct_loss:.2f}%)</span>
-            </div>
-            """, unsafe_allow_html=True)
+                # Différences
+                st.markdown("---")
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
-            st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="metric-box" style="background-color: var(--bg-diff);">
+                📉 Diff. WETH<br><span style='font-size: 1.5em'>{weth_diff:.8f}</span>
+                </div>
+                <div class="metric-box" style="background-color: var(--bg-loss);">
+                🔻 Perte estimée<br><span style='font-size: 1.5em'>${usd_diff:.2f} ({pct_loss:.2f}%)</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-            # --------- ANALYSE ---------
-            st.markdown("---")
-            st.markdown("## 🧠 Analyse des frais probables")
-            st.info("""
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                # Analyse textuelle
+                st.markdown("---")
+                st.markdown("## 🧠 Analyse des frais probables")
+                st.info("""
 - **Frais de swap** (~0.1 %)
 - **Slippage** (0.1 à 0.3 %)
 - **Frais de gas** estimés : $0.10 à $0.20
 - **Aucun frais d’automatisation détecté**
-            """)
+                """)
 
-            st.success("✅ Analyse terminée avec succès.")
+                st.success("✅ Analyse terminée avec succès.")
 
-        except Exception as e:
-            st.error("❌ Erreur lors du traitement : " + str(e))
-
-    else:
-        st.warning("⚠️ Impossible de détecter les montants WETH dans les logs collés. Vérifiez le format.")
+            except Exception as e:
+                st.error("❌ Erreur lors du traitement : " + str(e))
+        else:
+            st.warning("⚠️ Impossible de détecter les montants WETH dans les logs collés. Vérifiez le format.")
