@@ -2,25 +2,19 @@ import streamlit as st
 import re
 
 
-
-with st.sidebar.expander("🔒 Confidentialité des données"):
-    st.markdown("""
-    ✅ **Aucune donnée n’est collectée ou stockée.**
-    
-    Cette application fonctionne localement dans votre navigateur et ne conserve 
-    **aucune information personnelle ou saisie utilisateur**.
-
-    Tous les traitements sont effectués de manière temporaire et sécurisée.
-    
-
-
-
 # --------- CONFIG ---------
 st.set_page_config(
     page_title="Analyse Swap/Rebalance DEX",
     page_icon="📊",
     layout="centered"
 )
+
+✅ **Aucune donnée n’est collectée ou stockée.**
+    
+    Cette application fonctionne localement dans votre navigateur et ne conserve 
+    **aucune information personnelle ou saisie utilisateur**.
+
+    Tous les traitements sont effectués de manière temporaire et sécurisée.
 
 # --------- CSS ---------
 st.markdown("""
