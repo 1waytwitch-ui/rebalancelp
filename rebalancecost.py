@@ -2,14 +2,12 @@ import streamlit as st
 import pandas as pd
 import re
 
-# ---- CONFIGURATION DE LA PAGE ----
 st.set_page_config(page_title="Analyseur de Rebalance", layout="wide")
 st.title("🔍 Analyseur de Transaction Rebalance (Texte Collé)")
 
-# ---- ZONE DE TEXTE INPUT ----
 input_text = st.text_area("Collez ici le texte brut de la transaction :", height=600)
 
-# ---- FONCTION DE PARSING ----
+# 🧠 Parsing du texte collé
 def parse_text(text):
     lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
     data = []
@@ -41,7 +39,7 @@ def parse_text(text):
                     except ValueError:
                         usd = 0.0
 
-            # Recherche du token (souvent la ligne précédente ou "Unknown")
+            # Recherche du token (souvent juste avant "From")
             token_line = lines[i - 1] if i > 0 else "Unknown"
             token_match = re.search(r"\((.*?)\)", token_line)
             token = token_match.group(1) if token_match else token_line
@@ -54,13 +52,33 @@ def parse_text(text):
                 "USD": usd
             })
 
-            i += 7  # Aller au bloc suivant
+            i += 7
         else:
             i += 1
 
     return pd.DataFrame(data)
 
-# ---- AFFICHAGE DES RÉSULTATS ----
+# 💡 Calcul des entrées/sorties nettes
+def calculate_token_flows(df):
+    tokens = df['Token'].unique()
+    flow_data = []
+
+    for token in tokens:
+        token_df = df[df['Token'] == token]
+        total_in = token_df['USD'][token_df['To'] != "Unknown"].sum()
+        total_out = token_df['USD'][token_df['From'] != "Unknown"].sum()
+        net = total_in - total_out
+
+        flow_data.append({
+            "Token": token,
+            "Total reçu (USD)": round(total_in, 2),
+            "Total envoyé (USD)": round(total_out, 2),
+            "Net (USD)": round(net, 2)
+        })
+
+    return pd.DataFrame(flow_data)
+
+# ✅ Affichage
 if input_text:
     try:
         df = parse_text(input_text)
@@ -68,11 +86,10 @@ if input_text:
         st.subheader("📋 Détails des transferts détectés")
         st.dataframe(df, use_container_width=True)
 
-        st.subheader("💰 Résumé des flux")
+        st.subheader("💰 Résumé des flux (globaux)")
 
-        total_in = df['USD'].sum()
-        total_out = df['USD'].sum()  # Pour un vrai suivi net, il faudrait différencier les adresses
-
+        total_in = df['USD'][df['To'] != "Unknown"].sum()
+        total_out = df['USD'][df['From'] != "Unknown"].sum()
         net = total_in - total_out
 
         col1, col2, col3 = st.columns(3)
@@ -84,10 +101,18 @@ if input_text:
         chart = df.groupby("Token")["USD"].sum().sort_values(ascending=False)
         st.bar_chart(chart)
 
-        # 🔽 Option d'export
+        # 🔎 Calcul par token
+        st.subheader("🧾 Analyse par token (net des flux)")
+        flows_df = calculate_token_flows(df)
+        st.dataframe(flows_df, use_container_width=True)
+
+        # ⬇️ Export CSV
         st.subheader("⬇️ Export des données")
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("Télécharger en CSV", data=csv, file_name="rebalance_analysis.csv", mime='text/csv')
+        st.download_button("Télécharger transferts CSV", data=csv, file_name="transferts.csv", mime='text/csv')
+
+        csv2 = flows_df.to_csv(index=False).encode('utf-8')
+        st.download_button("Télécharger analyse flux CSV", data=csv2, file_name="flux_token.csv", mime='text/csv')
 
     except Exception as e:
         st.error(f"Erreur lors du parsing : {e}")
