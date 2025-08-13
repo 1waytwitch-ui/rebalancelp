@@ -2,36 +2,47 @@ import streamlit as st
 import pandas as pd
 import re
 
+# ---- CONFIGURATION DE LA PAGE ----
 st.set_page_config(page_title="Analyseur de Rebalance", layout="wide")
-
 st.title("🔍 Analyseur de Transaction Rebalance (Texte Collé)")
 
+# ---- ZONE DE TEXTE INPUT ----
 input_text = st.text_area("Collez ici le texte brut de la transaction :", height=600)
 
-# ---------------------- PARSING -------------------------
-
+# ---- FONCTION DE PARSING ----
 def parse_text(text):
-    lines = text.strip().split("\n")
+    lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
     data = []
     i = 0
 
     while i < len(lines):
-        line = lines[i].strip()
+        if lines[i].startswith("From"):
+            from_address = lines[i + 1]
+            to_address = "Unknown"
+            amount = 0.0
+            usd = 0.0
+            token = "Unknown"
 
-        if line.startswith("From"):
-            from_address = lines[i + 1].strip()
-            to_line = lines[i + 2].strip()
-            to_address = lines[i + 3].strip()
+            if i + 2 < len(lines) and lines[i + 2].startswith("To"):
+                to_address = lines[i + 3]
 
-            for_line = lines[i + 4].strip()
-            amount_match = re.search(r"For\n([0-9\.Ee+-]+)", "\n".join(lines[i+4:i+6]))
-            usd_match = re.search(r"\(\$(.*?)\)", "\n".join(lines[i+4:i+6]))
+            if i + 4 < len(lines) and lines[i + 4].startswith("For"):
+                amount_str = lines[i + 5].strip()
+                try:
+                    amount = float(amount_str)
+                except ValueError:
+                    amount = 0.0
 
-            amount = float(amount_match.group(1)) if amount_match else 0
-            usd = float(usd_match.group(1)) if usd_match else 0
+            if i + 6 < len(lines):
+                usd_match = re.search(r"\(\$(.*?)\)", lines[i + 6])
+                if usd_match:
+                    try:
+                        usd = float(usd_match.group(1))
+                    except ValueError:
+                        usd = 0.0
 
-            # Cherche le token sur la ligne suivante (ou actuelle si formaté différemment)
-            token_line = lines[i - 1].strip() if i > 0 else "Unknown"
+            # Recherche du token (souvent la ligne précédente ou "Unknown")
+            token_line = lines[i - 1] if i > 0 else "Unknown"
             token_match = re.search(r"\((.*?)\)", token_line)
             token = token_match.group(1) if token_match else token_line
 
@@ -43,14 +54,13 @@ def parse_text(text):
                 "USD": usd
             })
 
-            i += 6  # Sauter au bloc suivant
+            i += 7  # Aller au bloc suivant
         else:
             i += 1
 
     return pd.DataFrame(data)
 
-# ---------------------- INTERFACE -------------------------
-
+# ---- AFFICHAGE DES RÉSULTATS ----
 if input_text:
     try:
         df = parse_text(input_text)
@@ -59,8 +69,10 @@ if input_text:
         st.dataframe(df, use_container_width=True)
 
         st.subheader("💰 Résumé des flux")
-        total_in = df.groupby('To')['USD'].sum().sum()
-        total_out = df.groupby('From')['USD'].sum().sum()
+
+        total_in = df['USD'].sum()
+        total_out = df['USD'].sum()  # Pour un vrai suivi net, il faudrait différencier les adresses
+
         net = total_in - total_out
 
         col1, col2, col3 = st.columns(3)
@@ -72,5 +84,10 @@ if input_text:
         chart = df.groupby("Token")["USD"].sum().sort_values(ascending=False)
         st.bar_chart(chart)
 
+        # 🔽 Option d'export
+        st.subheader("⬇️ Export des données")
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("Télécharger en CSV", data=csv, file_name="rebalance_analysis.csv", mime='text/csv')
+
     except Exception as e:
-        st.error(f"Erreur de parsing : {e}")
+        st.error(f"Erreur lors du parsing : {e}")
