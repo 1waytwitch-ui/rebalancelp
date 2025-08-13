@@ -9,12 +9,6 @@ st.set_page_config(
     layout="centered"
 )
 
-✅ **Aucune donnée n’est collectée ou stockée.**
-    
-    Cette application fonctionne localement dans votre navigateur et ne conserve 
-    **aucune information personnelle ou saisie utilisateur**.
-
-    Tous les traitements sont effectués de manière temporaire et sécurisée.
 
 # --------- CSS ---------
 st.markdown("""
