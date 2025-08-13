@@ -1,82 +1,76 @@
-# rebalance_analyzer.py
-
 import streamlit as st
-from web3 import Web3
-import requests
 import pandas as pd
-from datetime import datetime
+import re
 
-# ----------- CONFIG ----------
-ETHERSCAN_API_KEY = "VOTRE_CLE_API_ETHERSCAN"
-INFURA_URL = "https://mainnet.infura.io/v3/VOTRE_CLE_INFURA"
-web3 = Web3(Web3.HTTPProvider(INFURA_URL))
-ETHERSCAN_API = "https://api.etherscan.io/api"
-# -----------------------------
+st.set_page_config(page_title="Analyseur de Rebalance", layout="wide")
 
-# ----------- FUNCTIONS ------------
-def get_tx_receipt(tx_hash):
-    return web3.eth.get_transaction_receipt(tx_hash)
+st.title("🔍 Analyseur de Transaction Rebalance (Texte Collé)")
 
-def get_tx_details(tx_hash):
-    return web3.eth.get_transaction(tx_hash)
+input_text = st.text_area("Collez ici le texte brut de la transaction :", height=600)
 
-def get_token_transfers(tx_hash):
-    url = f"{ETHERSCAN_API}?module=account&action=tokentx&txhash={tx_hash}&apikey={ETHERSCAN_API_KEY}"
-    response = requests.get(url)
-    return response.json().get("result", [])
+# ---------------------- PARSING -------------------------
 
-def wei_to_eth(wei):
-    return Web3.from_wei(int(wei), 'ether')
+def parse_text(text):
+    lines = text.strip().split("\n")
+    data = []
+    i = 0
 
-def usd_estimate(symbol, amount):
-    # Approximate static prices (can be connected to CoinGecko or DefiLlama)
-    price_dict = {
-        "WETH": 4620,
-        "USDC": 1,
-        "ZORA": 4.62  # Exemple
-    }
-    return price_dict.get(symbol, 0) * float(amount)
-# ----------------------------------
+    while i < len(lines):
+        line = lines[i].strip()
 
-# ----------- STREAMLIT UI -----------
-st.title("🔍 Analyseur de Transaction Rebalance (Krystal)")
+        if line.startswith("From"):
+            from_address = lines[i + 1].strip()
+            to_line = lines[i + 2].strip()
+            to_address = lines[i + 3].strip()
 
-tx_hash = st.text_input("Entrer le hash de transaction Ethereum (0x...)")
+            for_line = lines[i + 4].strip()
+            amount_match = re.search(r"For\n([0-9\.Ee+-]+)", "\n".join(lines[i+4:i+6]))
+            usd_match = re.search(r"\(\$(.*?)\)", "\n".join(lines[i+4:i+6]))
 
-if tx_hash:
+            amount = float(amount_match.group(1)) if amount_match else 0
+            usd = float(usd_match.group(1)) if usd_match else 0
+
+            # Cherche le token sur la ligne suivante (ou actuelle si formaté différemment)
+            token_line = lines[i - 1].strip() if i > 0 else "Unknown"
+            token_match = re.search(r"\((.*?)\)", token_line)
+            token = token_match.group(1) if token_match else token_line
+
+            data.append({
+                "Token": token,
+                "From": from_address,
+                "To": to_address,
+                "Amount": amount,
+                "USD": usd
+            })
+
+            i += 6  # Sauter au bloc suivant
+        else:
+            i += 1
+
+    return pd.DataFrame(data)
+
+# ---------------------- INTERFACE -------------------------
+
+if input_text:
     try:
-        tx = get_tx_details(tx_hash)
-        receipt = get_tx_receipt(tx_hash)
-        transfers = get_token_transfers(tx_hash)
+        df = parse_text(input_text)
 
-        st.subheader("📦 Informations de base")
-        st.write(f"De : `{tx['from']}`")
-        st.write(f"À : `{tx['to']}`")
-        st.write(f"Gas utilisé : {receipt['gasUsed']} units")
-        st.write(f"Bloc : {tx['blockNumber']}")
-        st.write(f"Timestamp : {datetime.fromtimestamp(web3.eth.get_block(tx['blockNumber'])['timestamp'])}")
+        st.subheader("📋 Détails des transferts détectés")
+        st.dataframe(df, use_container_width=True)
 
-        # Créer tableau des transferts
-        df = pd.DataFrame(transfers)
-        df['amount'] = df['value'].astype(float) / 10 ** df['tokenDecimal'].astype(int)
-        df['usd'] = df.apply(lambda row: usd_estimate(row['tokenSymbol'], row['amount']), axis=1)
-        df = df[['from', 'to', 'tokenSymbol', 'amount', 'usd']]
-
-        st.subheader("🔁 Transferts détectés")
-        st.dataframe(df)
-
-        total_in = df[df['to'] == tx['from']]['usd'].sum()
-        total_out = df[df['from'] == tx['from']]['usd'].sum()
+        st.subheader("💰 Résumé des flux")
+        total_in = df.groupby('To')['USD'].sum().sum()
+        total_out = df.groupby('From')['USD'].sum().sum()
         net = total_in - total_out
 
-        st.subheader("📊 Résumé financier")
-        st.write(f"Total envoyé : **{total_out:.2f} $**")
-        st.write(f"Total reçu : **{total_in:.2f} $**")
-        st.write(f"Net : **{net:+.2f} $**")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total sortant", f"${total_out:.2f}")
+        col2.metric("Total entrant", f"${total_in:.2f}")
+        col3.metric("Net", f"${net:.2f}", delta=f"{net:.2f}")
 
-        st.subheader("📉 Graphique des flux")
-        chart_df = df.groupby('tokenSymbol')['usd'].sum().reset_index()
-        st.bar_chart(chart_df.set_index('tokenSymbol'))
+        st.subheader("📊 Répartition par token")
+        chart = df.groupby("Token")["USD"].sum().sort_values(ascending=False)
+        st.bar_chart(chart)
 
     except Exception as e:
-        st.error(f"Erreur lors de l'analyse : {e}")
+        st.error(f"Erreur de parsing : {e}")
