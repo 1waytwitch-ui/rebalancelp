@@ -49,29 +49,19 @@ st.markdown("""
         border-radius: 12px;
         text-align: center;
         font-weight: bold;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #222;
     }
 
-    /* Couleurs adaptatives pour thèmes clairs/sombres */
+    /* Couleurs vives pour les fonds */
     [data-testid="stAppViewContainer"] {
-        --bg-sent: #e0f7fa;
-        --bg-received: #e8f5e9;
-        --bg-diff: #fff3e0;
-        --bg-loss: #fce4ec;
-        --info-bg: #dbeafe;
-        --success-bg: #dcfce7;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        [data-testid="stAppViewContainer"] {
-            --bg-sent: #00333d;
-            --bg-received: #1b4b2f;
-            --bg-diff: #4b3e00;
-            --bg-loss: #5a0024;
-            --info-bg: #1e40af;
-            --success-bg: #14532d;
-        }
+        --bg-sent: #90caf9;         /* bleu vif */
+        --bg-received: #a5d6a7;     /* vert vif */
+        --bg-diff: #ffd54f;         /* jaune vif */
+        --bg-loss: #ff8a80;         /* rouge vif */
+        --info-bg: #bbdefb;         /* bleu clair vif */
+        --success-bg: #a5d6a7;      /* vert clair vif */
     }
 
     /* Styles des titres de sections */
@@ -81,6 +71,7 @@ st.markdown("""
         margin-top: 2rem;
         margin-bottom: 0.3rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #222222;
     }
 
     /* Style boite info */
@@ -92,6 +83,7 @@ st.markdown("""
         margin-top: 1rem;
         margin-bottom: 1rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #222;
     }
 
     /* Style boite succès */
@@ -102,6 +94,7 @@ st.markdown("""
         font-size: 1rem;
         margin-bottom: 2rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #222;
     }
     </style>
 
@@ -122,6 +115,7 @@ analyser = st.button("🔎 Analyser")
 # --------- PARSE & AFFICHAGE ---------
 if logs and analyser:
     with st.spinner("⏳ Analyse en cours..."):
+        # Regex simplifiée pour test (adapter selon tes logs)
         sent_match = re.search(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
         received_match = re.findall(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
 
@@ -139,39 +133,31 @@ if logs and analyser:
                 # Affichage résumé
                 st.markdown(f'<div class="section-title">📊 Résumé des montants</div>', unsafe_allow_html=True)
 
-                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-
                 st.markdown(f"""
-                <div class="metric-box" style="background-color: var(--bg-sent);">
-                🔼 WETH envoyé<br><span style='font-size: 1.5em'>{weth_sent:.8f}</span>
+                <div class="metric-box" style="background-color: var(--bg-sent); margin-bottom: 0.5rem;">
+                🔼 <b>WETH envoyé</b><br><span style='font-size: 1.6rem;'>{weth_sent:.8f}</span>
                 </div>
-                <div class="metric-box" style="background-color: var(--bg-sent);">
-                💵 USD envoyé<br><span style='font-size: 1.5em'>${usd_sent:.2f}</span>
+                <div class="metric-box" style="background-color: var(--bg-sent); margin-bottom: 0.5rem;">
+                💵 <b>USD envoyé</b><br><span style='font-size: 1.6rem;'>${usd_sent:.2f}</span>
                 </div>
-                <div class="metric-box" style="background-color: var(--bg-received);">
-                🔽 WETH reçu<br><span style='font-size: 1.5em'>{weth_received:.8f}</span>
+                <div class="metric-box" style="background-color: var(--bg-received); margin-bottom: 0.5rem;">
+                🔽 <b>WETH reçu</b><br><span style='font-size: 1.6rem;'>{weth_received:.8f}</span>
                 </div>
-                <div class="metric-box" style="background-color: var(--bg-received);">
-                💰 USD reçu<br><span style='font-size: 1.5em'>${usd_received:.2f}</span>
+                <div class="metric-box" style="background-color: var(--bg-received); margin-bottom: 0.5rem;">
+                💰 <b>USD reçu</b><br><span style='font-size: 1.6rem;'>${usd_received:.2f}</span>
                 </div>
-                """ , unsafe_allow_html=True)
-
-                st.markdown('</div>', unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
                 # Différence
                 st.markdown("---")
-                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-
                 st.markdown(f"""
-                <div class="metric-box" style="background-color: var(--bg-diff);">
-                📉 Diff. WETH<br><span style='font-size: 1.5em'>{weth_diff:.8f}</span>
+                <div class="metric-box" style="background-color: var(--bg-diff); margin-bottom: 0.5rem;">
+                📉 <b>Diff. WETH</b><br><span style='font-size: 1.6rem;'>{weth_diff:.8f}</span>
                 </div>
-                <div class="metric-box" style="background-color: var(--bg-loss);">
-                🔻 Perte estimée<br><span style='font-size: 1.5em'>${usd_diff:.2f} ({pct_loss:.2f}%)</span>
+                <div class="metric-box" style="background-color: var(--bg-loss); margin-bottom: 0.5rem;">
+                🔻 <b>Perte estimée</b><br><span style='font-size: 1.6rem;'>${usd_diff:.2f} ({pct_loss:.2f}%)</span>
                 </div>
-                """ , unsafe_allow_html=True)
-
-                st.markdown('</div>', unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
                 # Analyse frais
                 st.markdown("---")
