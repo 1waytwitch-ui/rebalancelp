@@ -8,7 +8,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --------- CUSTOM HEADER HTML ---------
+# --------- CSS ---------
 st.markdown("""
     <style>
     .header-container {
@@ -20,31 +20,18 @@ st.markdown("""
         margin-bottom: 2rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
     .header-title {
         font-size: 2.5rem;
         font-weight: 800;
         margin-bottom: 0.5rem;
     }
-
     .header-subtitle {
         font-size: 1.1rem;
         font-weight: 400;
         max-width: 700px;
         margin: 0 auto;
     }
-
-    /* Style résumé des montants */
-    .metric-container {
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-
     .metric-box {
-        flex: 1 1 200px;
         padding: 1rem;
         border-radius: 12px;
         text-align: center;
@@ -52,31 +39,27 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: #222;
+        margin-bottom: 0.8rem;
     }
-
-    /* Couleurs vives pour les fonds */
-    [data-testid="stAppViewContainer"] {
-        --bg-sent: #90caf9;         /* bleu vif */
-        --bg-received: #a5d6a7;     /* vert vif */
-        --bg-diff: #ffd54f;         /* jaune vif */
-        --bg-loss: #ff8a80;         /* rouge vif */
-        --info-bg: #bbdefb;         /* bleu clair vif */
-        --success-bg: #a5d6a7;      /* vert clair vif */
+    /* Couleurs vives */
+    .sent {
+        background-color: #42a5f5;  /* bleu vif */
+        color: white;
     }
-
-    /* Styles des titres de sections */
-    .section-title {
-        font-weight: 800;
-        font-size: 1.9rem;
-        margin-top: 2rem;
-        margin-bottom: 0.3rem;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        color: #222222;
+    .received {
+        background-color: #66bb6a;  /* vert vif */
+        color: white;
     }
-
-    /* Style boite info */
+    .diff {
+        background-color: #ffca28;  /* jaune vif */
+        color: #333;
+    }
+    .loss {
+        background-color: #ef5350;  /* rouge vif */
+        color: white;
+    }
     .info-box {
-        background-color: var(--info-bg);
+        background-color: #bbdefb;
         padding: 1rem 1.2rem;
         border-radius: 12px;
         font-size: 1rem;
@@ -85,16 +68,22 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: #222;
     }
-
-    /* Style boite succès */
     .success-box {
-        background-color: var(--success-bg);
+        background-color: #a5d6a7;
         padding: 1rem 1.2rem;
         border-radius: 12px;
         font-size: 1rem;
         margin-bottom: 2rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: #222;
+    }
+    .section-title {
+        font-weight: 800;
+        font-size: 1.9rem;
+        margin-top: 2rem;
+        margin-bottom: 0.3rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #222222;
     }
     </style>
 
@@ -110,72 +99,94 @@ st.markdown("""
 logs = st.text_area("📋 Collez vos logs ici :", height=400, placeholder="Exemple : From\n0x...\nTo\n...")
 
 # --------- BOUTON ---------
-analyser = st.button("🔎 Analyser")
+if st.button("🔎 Analyser") and logs:
 
-# --------- PARSE & AFFICHAGE ---------
-if logs and analyser:
     with st.spinner("⏳ Analyse en cours..."):
-        # Regex simplifiée pour test (adapter selon tes logs)
-        sent_match = re.search(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
-        received_match = re.findall(r"For\n([0-9.]+)\n\(\$([0-9.]+)\)\n\nWrapped Ethe", logs)
+        # Pattern générique pour trouver : "For\n<montant>\n(<USD>)\n\n<token>" 
+        # ou "For\n<montant>\n\n<token>" sans USD
+        pattern = re.compile(
+            r"For\n([0-9.,]+)(?:\n\(\$?([\d.,]+)\))?\n\n([A-Za-z0-9]+)", 
+            re.MULTILINE
+        )
 
-        if sent_match and len(received_match) >= 2:
-            try:
-                weth_sent = float(sent_match.group(1))
-                usd_sent = float(sent_match.group(2))
-                weth_received = float(received_match[-1][0])
-                usd_received = float(received_match[-1][1])
+        matches = pattern.findall(logs)
 
-                weth_diff = weth_sent - weth_received
-                usd_diff = usd_sent - usd_received
-                pct_loss = (usd_diff / usd_sent) * 100 if usd_sent != 0 else 0.0
-
-                # Affichage résumé
-                st.markdown(f'<div class="section-title">📊 Résumé des montants</div>', unsafe_allow_html=True)
-
-                st.markdown(f"""
-                <div class="metric-box" style="background-color: var(--bg-sent); margin-bottom: 0.5rem;">
-                🔼 <b>WETH envoyé</b><br><span style='font-size: 1.6rem;'>{weth_sent:.8f}</span>
-                </div>
-                <div class="metric-box" style="background-color: var(--bg-sent); margin-bottom: 0.5rem;">
-                💵 <b>USD envoyé</b><br><span style='font-size: 1.6rem;'>${usd_sent:.2f}</span>
-                </div>
-                <div class="metric-box" style="background-color: var(--bg-received); margin-bottom: 0.5rem;">
-                🔽 <b>WETH reçu</b><br><span style='font-size: 1.6rem;'>{weth_received:.8f}</span>
-                </div>
-                <div class="metric-box" style="background-color: var(--bg-received); margin-bottom: 0.5rem;">
-                💰 <b>USD reçu</b><br><span style='font-size: 1.6rem;'>${usd_received:.2f}</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # Différence
-                st.markdown("---")
-                st.markdown(f"""
-                <div class="metric-box" style="background-color: var(--bg-diff); margin-bottom: 0.5rem;">
-                📉 <b>Diff. WETH</b><br><span style='font-size: 1.6rem;'>{weth_diff:.8f}</span>
-                </div>
-                <div class="metric-box" style="background-color: var(--bg-loss); margin-bottom: 0.5rem;">
-                🔻 <b>Perte estimée</b><br><span style='font-size: 1.6rem;'>${usd_diff:.2f} ({pct_loss:.2f}%)</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # Analyse frais
-                st.markdown("---")
-                st.markdown(f'<div class="section-title">🧠 Analyse des frais probables</div>', unsafe_allow_html=True)
-                st.markdown(f"""
-                <div class="info-box">
-                <ul>
-                <li><b>Frais de swap</b> (~0.1 %)</li>
-                <li><b>Slippage</b> (0.1 à 0.3 %)</li>
-                <li><b>Frais de gas</b> estimés : 0.10 à 0.20 $</li>
-                <li>Aucun frais d’automatisation détecté</li>
-                </ul>
-                </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown('<div class="success-box">✅ Analyse terminée avec succès.</div>', unsafe_allow_html=True)
-
-            except Exception as e:
-                st.error("❌ Erreur lors du traitement : " + str(e))
+        if not matches:
+            st.warning("⚠️ Aucun token détecté dans les logs. Vérifiez le format.")
         else:
-            st.warning("⚠️ Impossible de détecter les montants WETH dans les logs collés. Vérifiez le format.")
+            # On va séparer les tokens envoyés et reçus selon l'ordre d'apparition:
+            # Supposons que les tokens envoyés apparaissent en premier, puis reçus.
+            # S'il y a une autre logique dans les logs, il faudra adapter.
+
+            # Pour l'exemple, on considère la moitié première = tokens envoyés
+            # deuxième moitié = tokens reçus
+            half = len(matches) // 2
+            sent_tokens = matches[:half]
+            received_tokens = matches[half:]
+
+            # Construit un dict pour avoir les tokens envoyés {symbol: {amount, usd}}
+            sent_dict = {}
+            for amt, usd, symbol in sent_tokens:
+                amt = float(amt.replace(',', ''))
+                usd_val = float(usd.replace(',', '')) if usd else 0.0
+                sent_dict[symbol] = {"amount": amt, "usd": usd_val}
+
+            # Idem pour tokens reçus
+            received_dict = {}
+            for amt, usd, symbol in received_tokens:
+                amt = float(amt.replace(',', ''))
+                usd_val = float(usd.replace(',', '')) if usd else 0.0
+                received_dict[symbol] = {"amount": amt, "usd": usd_val}
+
+            # Affichage
+            st.markdown(f'<div class="section-title">📊 Résumé des montants</div>', unsafe_allow_html=True)
+
+            # Envoyé
+            for symbol, data in sent_dict.items():
+                st.markdown(f"""
+                <div class="metric-box sent">
+                🔼 <b>{symbol} envoyé</b><br><span style='font-size: 1.6rem;'>{data["amount"]:.8f}</span><br>
+                💵 <b>USD</b> : ${data["usd"]:.2f}
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Reçu
+            for symbol, data in received_dict.items():
+                st.markdown(f"""
+                <div class="metric-box received">
+                🔽 <b>{symbol} reçu</b><br><span style='font-size: 1.6rem;'>{data["amount"]:.8f}</span><br>
+                💰 <b>USD</b> : ${data["usd"]:.2f}
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Calcul des différences USD
+            total_sent_usd = sum(d["usd"] for d in sent_dict.values())
+            total_received_usd = sum(d["usd"] for d in received_dict.values())
+            diff_usd = total_sent_usd - total_received_usd
+            pct_loss = (diff_usd / total_sent_usd) * 100 if total_sent_usd != 0 else 0
+
+            st.markdown("---")
+            st.markdown(f"""
+            <div class="metric-box diff">
+            📉 <b>Différence USD</b><br><span style='font-size: 1.6rem;'>${diff_usd:.2f}</span>
+            </div>
+            <div class="metric-box loss">
+            🔻 <b>Perte estimée</b><br><span style='font-size: 1.6rem;'>${diff_usd:.2f} ({pct_loss:.2f} %)</span>
+            </div>
+            """ , unsafe_allow_html=True)
+
+            # Analyse frais probable
+            st.markdown("---")
+            st.markdown(f'<div class="section-title">🧠 Analyse des frais probables</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="info-box">
+            <ul>
+            <li><b>Frais de swap</b> (~0.1 %)</li>
+            <li><b>Slippage</b> (0.1 à 0.3 %)</li>
+            <li><b>Frais de gas</b> estimés : 0.10 à 0.20 $</li>
+            <li>Aucun frais d’automatisation détecté</li>
+            </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown('<div class="success-box">✅ Analyse terminée avec succès.</div>', unsafe_allow_html=True)
